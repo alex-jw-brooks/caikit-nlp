@@ -280,6 +280,20 @@ def load_samsum_dataset() -> Tuple[caikit.core.data_model.DataStream]:
     return (train_stream, validation_stream, test_stream)
 
 
+def load_json_data(filename="oom_data.json") -> Tuple[caikit.core.data_model.DataStream]:
+    import json
+    with open(filename, "r") as f:
+        data = json.load(f)
+    def to_generation_fmt(x):
+        return GenerationTrainRecord(input=x["input"], output=str(x["output"]))
+    build_stream = lambda split: caikit.core.data_model.DataStream.from_iterable(
+        [to_generation_fmt(datum) for datum in split]
+    )
+    # Just return the one dataset as all the streams...
+    s = build_stream(data)
+    return (s,s,s)
+
+
 def get_wrapped_evaluate_metric(metric_name: str, convert_to_numeric: bool) -> Callable:
     """Wrapper for running metrics out of evaluate which operate on numeric arrays
     named predictions & references, respectively.
@@ -407,6 +421,11 @@ SUPPORTED_DATASETS = {
         dataset_loader=load_samsum_dataset,
         init_text="",
     ),
+    "oom_data": DatasetInfo(
+        verbalizer="{{input}}",
+        dataset_loader=load_json_data,
+        init_text="",
+    )
 }
 
 # Supported metrics in huggingface's evaluate library.
