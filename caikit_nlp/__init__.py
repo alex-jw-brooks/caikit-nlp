@@ -29,7 +29,12 @@ from .config import *
 from .data_model import *
 from .modules import *
 from .resources import *
-from .version import __version__, __version_tuple__
+# from .version import __version__, __version_tuple__
+
+
+__version__ = "unknown"
+version_tuple = (0, 0, __version__)
+__version_tuple__ = version_tuple
 
 # Configure the library with library-specific configuration file
 CONFIG_PATH = os.path.realpath(
