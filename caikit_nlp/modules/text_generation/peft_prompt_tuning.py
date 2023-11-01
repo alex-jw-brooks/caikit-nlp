@@ -18,6 +18,7 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 import gc
 import json
 import os
+import psutil
 
 # Third Party
 from accelerate import Accelerator
@@ -39,6 +40,7 @@ from transformers.optimization import get_linear_schedule_with_warmup
 import numpy as np
 import torch
 import transformers
+import tracemalloc
 
 # First Party
 from caikit.core.data_model import DataStream
@@ -1038,13 +1040,17 @@ class PeftPromptTuning(ModuleBase):
         training_loss_tracker = []
 
         step_count = 1
+        # Reset memory peak here, since something presumably goes wrong / grows in train loop
+        process = psutil.Process()
+        tracemalloc.reset_peak()
+        f = open("tracemalloc.txt", "w")
 
         for epoch in range(num_epochs):
             step_loss_log = {}
             model.train()
             total_loss = 0
             tqdm_loader = tqdm(train_dataloader, disable=silence_progress_bars)
-            for batch in tqdm_loader:
+            for idx, batch in enumerate(tqdm_loader):
 
                 tqdm_loader.set_description("Epoch: {}".format(epoch))
 
@@ -1067,7 +1073,13 @@ class PeftPromptTuning(ModuleBase):
                         "<NLP07175292E>",
                         MemoryError("Not enough memory available for training!"),
                     )
-
+                size, peak = tracemalloc.get_traced_memory()
+                tlog = f"iter {idx+1}: current size: {size}, peak size: {peak}, threshold: {gc.get_threshold()}, cnt: {gc.get_count()}, mem: {process.memory_info().rss}\n"
+                f.write(tlog)
+                if idx > 2000:
+                    tracemalloc.stop()
+                    f.close()
+                    break
             log.info("<NLP46114010I>", {"loss": float(loss), "epoch": epoch})
 
             for step, loss_val in step_loss_log.items():
